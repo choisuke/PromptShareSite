@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>Prompt Share</title>
+<style>
+body { font-family: Arial, sans-serif; }
+.accordion { margin: 10px 0; }
+.comment { margin-left: 20px; }
+</style>
+</head>
+<body>
+<div id="login">
+  <h2>ログイン</h2>
+  <input id="username" placeholder="ID" />
+  <input id="password" placeholder="Password" type="password" />
+  <button onclick="login()">ログイン</button>
+</div>
+<div id="content" style="display:none;">
+  <button onclick="showPost()">プロンプト投稿</button>
+  <div id="post" style="display:none;">
+    <textarea id="ptext" placeholder="プロンプト"></textarea><br>
+    <select id="ptype">
+      <option value="sales">営業</option>
+      <option value="support">サポート</option>
+      <option value="dev">開発</option>
+    </select><br>
+    <input id="psummary" placeholder="業務概要" /><br>
+    <input id="presult" placeholder="得られる結果" /><br>
+    <button onclick="postPrompt()">登録</button>
+  </div>
+  <div id="prompts"></div>
+</div>
+<script>
+let userId = '';
+async function login() {
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  const res = await fetch('/login', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ username, password })
+  });
+  if(res.ok){
+    const data = await res.json();
+    userId = data._embedded && data._embedded.user ? data._embedded.user.id : username;
+    document.getElementById('login').style.display='none';
+    document.getElementById('content').style.display='block';
+    loadPrompts();
+  } else {
+    alert('login failed');
+  }
+}
+async function loadPrompts(){
+  const res = await fetch('/prompts');
+  const prompts = await res.json();
+  const container = document.getElementById('prompts');
+  container.innerHTML='';
+  const groups = {};
+  prompts.forEach(p=>{ if(!groups[p.businessType]) groups[p.businessType]=[]; groups[p.businessType].push(p); });
+  Object.keys(groups).forEach(type=>{
+    const acc = document.createElement('details');
+    const sum = document.createElement('summary');
+    sum.textContent = type;
+    acc.appendChild(sum);
+    groups[type].forEach(p=>{
+      const pacc = document.createElement('details');
+      const s = document.createElement('summary');
+      s.innerHTML = `${p.text} <button onclick=\"likePrompt('${p._id}')\">👍</button> ${p.likes}`;
+      pacc.appendChild(s);
+      const div = document.createElement('div');
+      div.innerHTML = `<p>${p.summary}</p><p>${p.result}</p><p>By ${p.userId}</p>`;
+      const comments = document.createElement('div');
+      p.comments.forEach(c=>{
+        const cd = document.createElement('div');
+        cd.className='comment';
+        cd.textContent = `${c.userName}: ${c.text}`;
+        comments.appendChild(cd);
+      });
+      const cinput = document.createElement('input');
+      cinput.placeholder='コメント';
+      const cbtn = document.createElement('button');
+      cbtn.textContent='投稿';
+      cbtn.onclick=()=>postComment(p._id, cinput.value);
+      div.appendChild(comments);
+      div.appendChild(cinput);
+      div.appendChild(cbtn);
+      pacc.appendChild(div);
+      acc.appendChild(pacc);
+    });
+    container.appendChild(acc);
+  });
+}
+function showPost(){
+  const p = document.getElementById('post');
+  p.style.display=p.style.display==='none'?'block':'none';
+}
+async function postPrompt(){
+  const p = {
+    text: document.getElementById('ptext').value,
+    businessType: document.getElementById('ptype').value,
+    summary: document.getElementById('psummary').value,
+    result: document.getElementById('presult').value,
+    userId
+  };
+  await fetch('/prompts', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(p)});
+  document.getElementById('post').style.display='none';
+  loadPrompts();
+}
+async function likePrompt(id){
+  await fetch('/prompts/'+id+'/like', {method:'POST'});
+  loadPrompts();
+}
+async function postComment(id,text){
+  if(!text) return;
+  await fetch('/prompts/'+id+'/comments', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text, userName:userId })});
+  loadPrompts();
+}
+</script>
+</body>
+</html>
