@@ -20,19 +20,31 @@
   <div class="mb-3">
     <textarea id="presult" class="form-control" rows="3" placeholder="得られる結果" required></textarea>
   </div>
-  <button type="submit" class="btn btn-primary">登録</button>
+  <button id="submitBtn" type="submit" class="btn btn-primary">登録</button>
   <a href="/prompts" class="btn btn-secondary ms-2">戻る</a>
 </form>
 <script>
 const userId=localStorage.getItem('userId');
 if(!userId){location.href='/';}
 let CONFIG={};
+const params=new URLSearchParams(location.search);
+const editId=params.get('id');
 fetch('/api/config').then(r=>r.json()).then(cfg=>{
   CONFIG=cfg;
   document.title=cfg.postPageName+' - '+cfg.siteName;
   document.getElementById('heading').textContent=cfg.postPageName;
   const sel=document.getElementById('ptype');
   cfg.categories.forEach(c=>{const opt=document.createElement('option');opt.value=c;opt.textContent=c;sel.appendChild(opt);});
+  if(editId){
+    document.getElementById('heading').textContent='プロンプト編集';
+    document.getElementById('submitBtn').textContent='更新';
+    fetch('/api/prompts/'+editId).then(r=>r.json()).then(p=>{
+      document.getElementById('ptext').value=p.text;
+      document.getElementById('ptype').value=p.businessType;
+      document.getElementById('psummary').value=p.summary;
+      document.getElementById('presult').value=p.result;
+    });
+  }
 });
 
 document.getElementById('form').addEventListener('submit',async e=>{
@@ -42,13 +54,20 @@ document.getElementById('form').addEventListener('submit',async e=>{
     businessType:document.getElementById('ptype').value,
     summary:document.getElementById('psummary').value,
     result:document.getElementById('presult').value,
-    userId,
-    createdAt:new Date().toISOString(),
-    likes:0,
-    comments:[]
+    userId
   };
+  let url='/api/prompts';
+  let method='POST';
+  if(editId){
+    url='/api/prompts/'+editId;
+    method='PUT';
+  }else{
+    p.createdAt=new Date().toISOString();
+    p.likes=0;
+    p.comments=[];
+  }
   try{
-    const res=await fetch('/api/prompts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+    const res=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
     if(res.ok){
       location.href='/prompts';
     }else{
