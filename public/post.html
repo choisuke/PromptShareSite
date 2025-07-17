@@ -2,27 +2,23 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8" />
-<title>Post Prompt - Prompt Share</title>
+<title id="title">Post</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="container py-4">
-<h2 class="mb-4">プロンプト投稿</h2>
+<h2 id="heading" class="mb-4">プロンプト投稿</h2>
 <form id="form" class="mb-3">
   <div class="mb-3">
     <textarea id="ptext" class="form-control" placeholder="プロンプト" required></textarea>
   </div>
   <div class="mb-3">
-    <select id="ptype" class="form-select">
-      <option value="sales">営業</option>
-      <option value="support">サポート</option>
-      <option value="dev">開発</option>
-    </select>
+    <select id="ptype" class="form-select"></select>
   </div>
   <div class="mb-3">
-    <input id="psummary" class="form-control" placeholder="業務概要" required>
+    <textarea id="psummary" class="form-control" rows="3" placeholder="業務概要" required></textarea>
   </div>
   <div class="mb-3">
-    <input id="presult" class="form-control" placeholder="得られる結果" required>
+    <textarea id="presult" class="form-control" rows="3" placeholder="得られる結果" required></textarea>
   </div>
   <button type="submit" class="btn btn-primary">登録</button>
   <a href="/prompts" class="btn btn-secondary ms-2">戻る</a>
@@ -30,6 +26,14 @@
 <script>
 const userId=localStorage.getItem('userId');
 if(!userId){location.href='/';}
+let CONFIG={};
+fetch('/api/config').then(r=>r.json()).then(cfg=>{
+  CONFIG=cfg;
+  document.title=cfg.postPageName+' - '+cfg.siteName;
+  document.getElementById('heading').textContent=cfg.postPageName;
+  const sel=document.getElementById('ptype');
+  cfg.categories.forEach(c=>{const opt=document.createElement('option');opt.value=c;opt.textContent=c;sel.appendChild(opt);});
+});
 
 document.getElementById('form').addEventListener('submit',async e=>{
   e.preventDefault();

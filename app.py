@@ -2,13 +2,13 @@ from flask import Flask, request, jsonify, send_from_directory
 from pymongo import MongoClient
 import requests
 import os
+import json
 from bson import ObjectId
-from dotenv import load_dotenv
-
-# Load non-sensitive environment variables
-load_dotenv()
 
 app = Flask(__name__, static_folder='public')
+
+with open(os.path.join(os.path.dirname(__file__), 'config.json')) as f:
+    CONFIG = json.load(f)
 
 mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017/prompts')
 client = MongoClient(mongo_url)
@@ -27,6 +27,10 @@ def list_page():
 @app.route('/post')
 def post_page():
     return send_from_directory(app.static_folder, 'post.html')
+
+@app.route('/api/config')
+def get_config():
+    return jsonify(CONFIG)
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -59,6 +63,7 @@ def get_prompts():
 def create_prompt():
     prompt = request.get_json()
     prompt.setdefault('likes', 0)
+    prompt.setdefault('likedBy', [])
     prompt.setdefault('comments', [])
     prompt.setdefault('createdAt', None)
     result = prompts_col.insert_one(prompt)
@@ -67,14 +72,30 @@ def create_prompt():
 
 @app.route('/api/prompts/<pid>/like', methods=['POST'])
 def like_prompt(pid):
-    result = prompts_col.find_one_and_update(
-        {'_id': ObjectId(pid)},
-        {'$inc': {'likes': 1}},
-        return_document=True
-    )
-    if not result:
+    data = request.get_json()
+    user_id = data.get('userId')
+    if not user_id:
+        return '', 400
+    prompt = prompts_col.find_one({'_id': ObjectId(pid)})
+    if not prompt:
         return '', 404
-    return jsonify({'likes': result['likes']})
+    if prompt.get('userId') == user_id:
+        return '', 403
+    if user_id in prompt.get('likedBy', []):
+        result = prompts_col.find_one_and_update(
+            {'_id': ObjectId(pid)},
+            {'$pull': {'likedBy': user_id}, '$inc': {'likes': -1}},
+            return_document=True
+        )
+        liked = False
+    else:
+        result = prompts_col.find_one_and_update(
+            {'_id': ObjectId(pid)},
+            {'$addToSet': {'likedBy': user_id}, '$inc': {'likes': 1}},
+            return_document=True
+        )
+        liked = True
+    return jsonify({'likes': result['likes'], 'liked': liked})
 
 @app.route('/api/prompts/<pid>', methods=['DELETE'])
 def delete_prompt(pid):
