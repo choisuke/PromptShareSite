@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title id="title">Prompts</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="container py-4">
+<nav class="mb-4">
+  <div class="d-flex justify-content-between align-items-center">
+    <h2 id="siteName">Prompt Share</h2>
+    <div>
+      <a href="/post" id="postBtn" class="btn btn-success">投稿</a>
+      <button class="btn btn-outline-secondary" onclick="logout()">ログアウト</button>
+    </div>
+  </div>
+</nav>
+<div class="input-group mb-3">
+  <input id="search" class="form-control" placeholder="検索">
+  <button class="btn btn-outline-primary" onclick="load()">検索</button>
+</div>
+<div id="prompts"></div>
+<script>
+const userId=localStorage.getItem('userId');
+if(!userId){location.href='/';}
+let CONFIG={};
+fetch('/api/config').then(r=>r.json()).then(cfg=>{
+  CONFIG=cfg;
+  document.title=cfg.listPageName+' - '+cfg.siteName;
+  document.getElementById('siteName').textContent=cfg.siteName;
+  document.getElementById('postBtn').textContent=cfg.postPageName;
+  load();
+});
+
+async function load(){
+  const res=await fetch('/api/prompts');
+  const list=await res.json();
+  const container=document.getElementById('prompts');
+  container.innerHTML='';
+  const query=document.getElementById('search').value.trim();
+  const groups={};
+  list.forEach(p=>{if(!groups[p.businessType]) groups[p.businessType]=[]; groups[p.businessType].push(p);});
+  Object.keys(groups).forEach(type=>{
+    const section=document.createElement('div');
+    section.className='mb-4';
+    const header=document.createElement('h4');
+    header.textContent=type;
+    section.appendChild(header);
+    groups[type].forEach(p=>{
+      if(query && !p.text.includes(query) && !p.summary.includes(query) && !p.result.includes(query)) return;
+      const card=document.createElement('div');
+      card.className='card mb-2';
+      const cBody=document.createElement('div');
+      cBody.className='card-body';
+      const delBtn=p.userId===userId?`<button class="btn btn-sm btn-danger float-end" onclick="delPrompt('${p._id}')"><span class='bi bi-trash'></span></button>`:'';
+      cBody.innerHTML=`<h5 class='card-title'>${p.text}${delBtn}</h5><p class='card-text'>${p.summary}<br>${p.result}<br><small class='text-muted'>By ${p.userId} - ${new Date(p.createdAt).toLocaleString()}</small></p>`;
+      const likeBtn=document.createElement('button');
+      likeBtn.className='btn btn-outline-primary btn-sm me-2';
+      likeBtn.innerHTML=`👍 ${p.likes}`;
+      if(p.userId!==userId){
+        if(p.likedBy && p.likedBy.includes(userId)) likeBtn.classList.add('active');
+        likeBtn.onclick=()=>likePrompt(p._id);
+      }else{
+        likeBtn.disabled=true;
+      }
+      cBody.appendChild(likeBtn);
+      const comments=document.createElement('div');
+      p.comments.forEach(c=>{
+        const cd=document.createElement('div');
+        cd.className='border-top pt-2';
+        const del=c.userId===userId?` <button class='btn btn-sm btn-link text-danger p-0 ms-2' onclick="delComment('${p._id}','${c._id}')"><span class='bi bi-trash'></span></button>`:'';
+        cd.innerHTML=`<small>${c.userName} (${new Date(c.createdAt).toLocaleString()}): ${c.text}${del}</small>`;
+        comments.appendChild(cd);
+      });
+      const row=document.createElement('div');
+      row.className='input-group mt-2';
+      const inp=document.createElement('input');
+      inp.className='form-control';
+      inp.placeholder='コメント';
+      const btn=document.createElement('button');
+      btn.className='btn btn-outline-secondary';
+      btn.textContent='投稿';
+      btn.onclick=()=>{postComment(p._id,inp.value); inp.value='';};
+      row.appendChild(inp);row.appendChild(btn);
+      cBody.appendChild(comments);
+      cBody.appendChild(row);
+      card.appendChild(cBody);
+      section.appendChild(card);
+    });
+    container.appendChild(section);
+  });
+}
+async function likePrompt(id){
+  await fetch('/api/prompts/'+id+'/like',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId})});
+  load();
+}
+async function postComment(id,text){if(!text)return;await fetch('/api/prompts/'+id+'/comments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,userName:userId,userId,createdAt:new Date().toISOString()})});load();}
+async function delPrompt(id){await fetch('/api/prompts/'+id,{method:'DELETE'});load();}
+async function delComment(pid,cid){await fetch('/api/prompts/'+pid+'/comments/'+cid,{method:'DELETE'});load();}
+function logout(){localStorage.removeItem('userId');location.href='/';}
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+</body>
+</html>

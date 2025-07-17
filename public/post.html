@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title id="title">Post</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="container py-4">
+<h2 id="heading" class="mb-4">プロンプト投稿</h2>
+<form id="form" class="mb-3">
+  <div class="mb-3">
+    <textarea id="ptext" class="form-control" placeholder="プロンプト" required></textarea>
+  </div>
+  <div class="mb-3">
+    <select id="ptype" class="form-select"></select>
+  </div>
+  <div class="mb-3">
+    <textarea id="psummary" class="form-control" rows="3" placeholder="業務概要" required></textarea>
+  </div>
+  <div class="mb-3">
+    <textarea id="presult" class="form-control" rows="3" placeholder="得られる結果" required></textarea>
+  </div>
+  <button type="submit" class="btn btn-primary">登録</button>
+  <a href="/prompts" class="btn btn-secondary ms-2">戻る</a>
+</form>
+<script>
+const userId=localStorage.getItem('userId');
+if(!userId){location.href='/';}
+let CONFIG={};
+fetch('/api/config').then(r=>r.json()).then(cfg=>{
+  CONFIG=cfg;
+  document.title=cfg.postPageName+' - '+cfg.siteName;
+  document.getElementById('heading').textContent=cfg.postPageName;
+  const sel=document.getElementById('ptype');
+  cfg.categories.forEach(c=>{const opt=document.createElement('option');opt.value=c;opt.textContent=c;sel.appendChild(opt);});
+});
+
+document.getElementById('form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const p={
+    text:document.getElementById('ptext').value,
+    businessType:document.getElementById('ptype').value,
+    summary:document.getElementById('psummary').value,
+    result:document.getElementById('presult').value,
+    userId,
+    createdAt:new Date().toISOString(),
+    likes:0,
+    comments:[]
+  };
+  await fetch('/api/prompts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+  location.href='/prompts';
+});
+</script>
+</body>
+</html>
