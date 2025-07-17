@@ -1,0 +1,7 @@
+{
+  "siteName": "Prompt Share",
+  "loginPageName": "ログイン",
+  "listPageName": "プロンプト一覧",
+  "postPageName": "プロンプト投稿",
+  "categories": ["営業", "サポート", "開発"]
+}
