@@ -3,6 +3,10 @@ from pymongo import MongoClient
 import requests
 import os
 from bson import ObjectId
+from dotenv import load_dotenv
+
+# Load non-sensitive environment variables
+load_dotenv()
 
 app = Flask(__name__, static_folder='public')
 
