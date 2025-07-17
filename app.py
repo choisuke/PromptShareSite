@@ -7,11 +7,11 @@ from bson import ObjectId
 
 app = Flask(__name__, static_folder='public')
 
-with open(os.path.join(os.path.dirname(__file__), 'config.json')) as f:
+with open(os.path.join(os.path.dirname(__file__), 'config.json'), encoding='utf-8') as f:
     CONFIG = json.load(f)
 
 mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017/prompts')
-client = MongoClient(mongo_url)
+client = MongoClient(mongo_url, serverSelectionTimeoutMS=5000)
 db = client.get_default_database()
 
 prompts_col = db.prompts
@@ -66,7 +66,10 @@ def create_prompt():
     prompt.setdefault('likedBy', [])
     prompt.setdefault('comments', [])
     prompt.setdefault('createdAt', None)
-    result = prompts_col.insert_one(prompt)
+    try:
+        result = prompts_col.insert_one(prompt)
+    except Exception:
+        return jsonify({'error': 'database error'}), 500
     prompt['_id'] = str(result.inserted_id)
     return jsonify(prompt)
 
