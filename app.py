@@ -4,6 +4,9 @@ import requests
 import os
 import json
 from bson import ObjectId
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__, static_folder='public')
 
