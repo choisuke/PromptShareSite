@@ -73,6 +73,35 @@ def create_prompt():
     prompt['_id'] = str(result.inserted_id)
     return jsonify(prompt)
 
+@app.route('/api/prompts/<pid>', methods=['GET'])
+def get_prompt(pid):
+    prompt = prompts_col.find_one({'_id': ObjectId(pid)})
+    if not prompt:
+        return '', 404
+    prompt['_id'] = str(prompt['_id'])
+    return jsonify(prompt)
+
+@app.route('/api/prompts/<pid>', methods=['PUT'])
+def update_prompt(pid):
+    data = request.get_json()
+    user_id = data.get('userId')
+    prompt = prompts_col.find_one({'_id': ObjectId(pid)})
+    if not prompt:
+        return '', 404
+    if prompt.get('userId') != user_id:
+        return '', 403
+    allowed = ['text', 'businessType', 'summary', 'result']
+    update = {k: data[k] for k in allowed if k in data}
+    if not update:
+        return '', 400
+    result = prompts_col.find_one_and_update(
+        {'_id': ObjectId(pid)},
+        {'$set': update},
+        return_document=True
+    )
+    result['_id'] = str(result['_id'])
+    return jsonify(result)
+
 @app.route('/api/prompts/<pid>/like', methods=['POST'])
 def like_prompt(pid):
     data = request.get_json()
